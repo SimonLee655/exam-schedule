@@ -5,7 +5,7 @@ window.onload = () => {
 
     function scheduleProcess(data) {
         const rawInfo = preProcessData(data);
-        console.log(data);
+        console.log(rawInfo);
     }
 
     function preProcessData(data) {
@@ -13,7 +13,8 @@ window.onload = () => {
         const classInfo = parseClassInfo(data);
         const examInfo = parseExamInfo(data, classInfo);
         return {
-            teachersInfo: teachersInfo
+            teachersInfo,
+            examInfo
         };
 
         /**
@@ -35,12 +36,11 @@ window.onload = () => {
              */
             const teachersInfo = {};
             if (data[0].name === '教師名單') {
-                Object.keys(data[0].rows).forEach((key) => {
+                for (const key in data[0].rows) {
                     const row = data[0].rows[key].cells;
                     if (key === '0') {
                         // header
-                        // console.log(`header: {row}`);
-                        return true;
+                        continue;
                     }
                     // schema: 0:姓名 1:教學科目 2:監考時數 3:進修時段
                     teachersInfo[row[0].text] = {
@@ -49,7 +49,7 @@ window.onload = () => {
                         '監考時數': +row[2].text, //require
                         '進修時段': row[3] ? parseStudyTime(row[3].text) : {}
                     }
-                });
+                }
             }
             return teachersInfo;
             /**
@@ -104,19 +104,63 @@ window.onload = () => {
         function parseExamInfo(data, classInfo) {
             const examInfo = {};
             if (data[2].name === '考程') {
-                Object.keys(data[2].rows).forEach((key) => {
-                    const row = data[2].rows[key].cells;
+                for (const key in data[2].rows) {
+                    const cells = data[2].rows[key].cells;
                     if (key === '0') {
                         // header
-                        return true;
+                        continue;
                     }
-                    const day = examInfo[row[0].text] ? examInfo[row[0].text] : {};
-                    const time = day[row[1].text] ? day[row[1].text] : {};
-                    const grade = time[row[2].text] ? time[row[2].text] : {};
-                    grade[]
-                });
+                    preprocessExamInfo(examInfo, cells);
+                }
             }
+            addClassInfoToExamInfo(examInfo, classInfo);
             return examInfo;
+
+            function preprocessExamInfo(examInfo, cells) {
+                const _day = cells[0].text;
+                const _time = cells[1].text;
+                const _grade = cells[2].text;
+                const _group = cells[3].text;
+                const _subject = cells[4].text;
+                const day = examInfo[_day] || {};
+                const time = day[_time] || {};
+                const grade = time[_grade] || [];
+                grade.push({
+                    'subject': _subject,
+                    'group': _group.split(','),
+                    'classes': []
+                });
+                time[_grade] = grade;
+                day[_time] = time;
+                examInfo[_day] = day;
+            }
+
+            function addClassInfoToExamInfo(examInfo, classInfo) {
+                for (const dayKey in examInfo) {
+                    const day = examInfo[dayKey];
+                    for (const timeKey in day) {
+                        const time = day[timeKey];
+                        for (const gradeKey in time) {
+                            const grade = time[gradeKey];
+                            grade.forEach(exam => {
+                                exam.classes = findMatchClasses(gradeKey, exam.group);
+                            });
+                        }
+                    }
+                }
+
+                function findMatchClasses(grade, groups) {
+                    const matchClasses = [];
+                    const gradeClasses = classInfo[grade];
+                    for (const className in gradeClasses) {
+                        const _class = gradeClasses[className];
+                        if (groups.includes(_class['類組'])) {
+                            matchClasses.push(_class);
+                        }
+                    }
+                    return matchClasses;
+                }
+            }
         }
         /**
          * parse 班級資訊
@@ -125,11 +169,11 @@ window.onload = () => {
         function parseClassInfo(data) {
             const classInfo = {};
             if (data[1].name === '班級') {
-                Object.keys(data[1].rows).forEach((key) => {
+                for (const key in data[1].rows) {
                     const row = data[1].rows[key].cells;
                     if (key === '0') {
                         // header
-                        return true;
+                        continue;
                     }
                     const grade = classInfo[row[0].text] ? classInfo[row[0].text] : {};
                     grade[row[1].text.trim()] = {
@@ -137,12 +181,11 @@ window.onload = () => {
                         '類組': row[3].text.trim()
                     };
                     classInfo[row[0].text] = grade;
-                });
+                }
             }
             return classInfo;
         }
     }
-
 
     function workbookHandler(workbook) {
         // console.log('handle workbook');
