@@ -2,9 +2,8 @@
   "name": "exam-schedule",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "echo i don't need this"
   },
   "keywords": [],
   "author": "",
