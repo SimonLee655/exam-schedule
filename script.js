@@ -3,6 +3,72 @@ window.onload = () => {
     const fileInput = document.getElementById('fileInput');
     fileInput.addEventListener('change', fileHandler, false);
 
+    const setTools = {
+        union: (set1, set2) => {
+            const _union = new set1(set1);
+            for (const element of set2) {
+                _union.add(element);
+            }
+            return _union;
+        }
+    }
+    const timeTools = {
+        parseTime: (rawTimeString) => {
+            if (!rawTimeString) return {};
+            // 三, 一(1), 二(2,4), 三(3-5)
+            const times = {};
+            rawTimeString.split(/(?<!()),(?!\))/i).forEach((dayString) => {
+                const day = dayString[0];
+                const timeString = dayString.substring(dayString.indexOf('(') + 1, dayString.indexOf(')'));
+                times[day] = [];
+                // 三 -> 全天
+                if (!timeString) {
+                    for (i = 0; i < 5; i++) {
+                        times[day].push(i + 1);
+                    }
+                    return true;
+                }
+                // 一(1)
+                if (timeString.length === 1) {
+                    times[day].push(+timeString);
+                    return true;
+                }
+                // 二(2,4)
+                if (timeString.includes(',')) {
+                    timeString.split(',').forEach((time) => {
+                        times[day].push(+time);
+                    });
+                    return true;
+                }
+                // 三(3-5)
+                if (timeString.includes('-')) {
+                    const begin = +timeString.split('-')[0];
+                    const end = +timeString.split('-')[1];
+                    for (i = begin; i <= end; i++) {
+                        times[day].push(i);
+                    }
+                    return true;
+                }
+                throw `timeString format error: ${timeString}`;
+            });
+            return times;
+        },
+        mergeTime: (time1, time2) => {
+            const time = {};
+            Object.assign(time, time1);
+            for (const dayInTime2 in time2) {
+                if (dayInTime2 in time) {
+                    const set1 = new Set(time[dayInTime2]);
+                    const set2 = time2[dayInTime2];
+                    const _union = setTools.union(set1, set2);
+                    time[dayInTime2] = [..._union];
+                    continue;
+                }
+                time[dayInTime2]
+            }
+        }
+    }
+
     function scheduleProcess(data) {
         const rawInfo = preProcessData(data);
         console.log(rawInfo);
@@ -47,55 +113,11 @@ window.onload = () => {
                         '姓名': row[0].text.trim(), //require
                         '教學科目': row[1] ? row[1].text.trim() : '',
                         '監考時數': +row[2].text, //require
-                        '進修時段': row[3] ? parseStudyTime(row[3].text) : {}
+                        '排除時段': row[3] ? parseTime(row[3].text) : {}
                     }
                 }
             }
             return teachersInfo;
-            /**
-             * parse進修時段
-             * @param {*} rawTimeString 
-             */
-            function parseStudyTime(rawTimeString) {
-                if (!rawTimeString) return {};
-                // 三, 一(1), 二(2,4), 三(3-5)
-                const times = {};
-                rawTimeString.split(/(?<!()),(?!\))/i).forEach((dayString) => {
-                    const day = dayString[0];
-                    const timeString = dayString.substring(dayString.indexOf('(') + 1, dayString.indexOf(')'));
-                    times[day] = [];
-                    // 三 -> 全天
-                    if (!timeString) {
-                        for (i = 0; i < 5; i++) {
-                            times[day].push(i + 1);
-                        }
-                        return true;
-                    }
-                    // 一(1)
-                    if (timeString.length === 1) {
-                        times[day].push(+timeString);
-                        return true;
-                    }
-                    // 二(2,4)
-                    if (timeString.includes(',')) {
-                        timeString.split(',').forEach((time) => {
-                            times[day].push(+time);
-                        });
-                        return true;
-                    }
-                    // 三(3-5)
-                    if (timeString.includes('-')) {
-                        const begin = +timeString.split('-')[0];
-                        const end = +timeString.split('-')[1];
-                        for (i = begin; i <= end; i++) {
-                            times[day].push(i);
-                        }
-                        return true;
-                    }
-                    throw `timeString format error: ${timeString}`;
-                });
-                return times;
-            }
         }
         /**
          * parse 考程資訊
@@ -155,7 +177,11 @@ window.onload = () => {
                     for (const className in gradeClasses) {
                         const _class = gradeClasses[className];
                         if (groups.includes(_class['類組'])) {
-                            matchClasses.push(_class);
+                            matchClasses.push({
+                                'className': className,
+                                '類組': _class['類組'],
+                                '樓層': _class['樓層'],
+                            });
                         }
                     }
                     return matchClasses;
@@ -199,7 +225,8 @@ window.onload = () => {
             const worksheet = workbook.Sheets[sheetName];
             const aoa = XLSX.utils.sheet_to_json(worksheet, {
                 raw: false,
-                header: 1
+                header: 1,
+                blankrows: false
             });
             aoa.forEach((row, rowIndex) => {
                 const cells = {};
