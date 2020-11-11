@@ -75,10 +75,17 @@ window.onload = () => {
 
     function scheduleProcess(data) {
         function constainsDayTime(unavailableTime, day, time) {
-            var unavailableDays = Object.keys(unavailableTime);
+            const times = {
+                '第一節': 1,
+                '第二節': 2,
+                '第三節': 3,
+                '第四節': 4,
+                '第五節': 5,
+            };
+            const unavailableDays = Object.keys(unavailableTime);
             // 這天沒不行
             if (!unavailableDays.includes(day)) return false;
-            return unavailableTime[day].includes(time);
+            return unavailableTime[day].includes(times[time]);
         }
 
         function getAvailableTeachers(teachersInfo, day, time) {
@@ -100,9 +107,10 @@ window.onload = () => {
         for (const day in rawInfo.examInfo) {
             for (const time in rawInfo.examInfo[day]) {
                 let teacherNeededCount = 0;
-                for (const grade in time) {
-                    teacherNeededCount += time[grade].length
+                for (const grade in rawInfo.examInfo[day][time]) {
+                    teacherNeededCount += rawInfo.examInfo[day][time][grade].length
                 }
+                const availableTeacherList = getAvailableTeachers(rawInfo.teachersInfo, day, time);
             }
         }
     }
@@ -153,8 +161,9 @@ window.onload = () => {
                         continue;
                     }
                     // schema: 0:姓名 1:教學科目 2:監考時數 3:進修時段
-                    teachersInfo[row[0].text] = {
-                        '姓名': row[0].text.trim(), //require
+                    const name = row[0].text.trim();
+                    teachersInfo[name] = {
+                        '姓名': name, //require
                         '教學科目': row[1] ? row[1].text.trim() : '',
                         '監考時數': +row[2].text, //require
                         '排除時段': parseUnavailableTime(row[3], row[4])
