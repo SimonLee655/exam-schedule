@@ -5,7 +5,7 @@ window.onload = () => {
 
     const setTools = {
         union: (set1, set2) => {
-            const _union = new set1(set1);
+            const _union = new Set(set1);
             for (const element of set2) {
                 _union.add(element);
             }
@@ -55,23 +55,56 @@ window.onload = () => {
         },
         mergeTime: (time1, time2) => {
             const time = {};
+            const intersection = [];
             Object.assign(time, time1);
             for (const dayInTime2 in time2) {
                 if (dayInTime2 in time) {
+                    intersection.push(dayInTime2);
                     const set1 = new Set(time[dayInTime2]);
                     const set2 = time2[dayInTime2];
                     const _union = setTools.union(set1, set2);
                     time[dayInTime2] = [..._union];
                     continue;
                 }
-                time[dayInTime2]
+                time[dayInTime2] = time2[dayInTime2];
             }
+            // for (const dayInTim1)
+            return time;
         }
     }
 
     function scheduleProcess(data) {
+        function constainsDayTime(unavailableTime, day, time) {
+            var unavailableDays = Object.keys(unavailableTime);
+            // 這天沒不行
+            if (!unavailableDays.includes(day)) return false;
+            return unavailableTime[day].includes(time);
+        }
+
+        function getAvailableTeachers(teachersInfo, day, time) {
+            const names = [];
+            for (name in teachersInfo) {
+                if (constainsDayTime(teachersInfo[name]['排除時段'], day, time)) {
+                    continue;
+                }
+                names.push(name);
+            }
+            return names;
+        }
+
+        function reductionTime(teachersInfo, name) {
+
+        }
         const rawInfo = preProcessData(data);
         console.log(rawInfo);
+        for (const day in rawInfo.examInfo) {
+            for (const time in rawInfo.examInfo[day]) {
+                let teacherNeededCount = 0;
+                for (const grade in time) {
+                    teacherNeededCount += time[grade].length
+                }
+            }
+        }
     }
 
     function preProcessData(data) {
@@ -88,6 +121,17 @@ window.onload = () => {
          * @param {*} data 
          */
         function parseTeacherInfo(data) {
+            function parseUnavailableTime(time1, time2) {
+                const time1Text = time1 ? time1.text : '';
+                const time2Text = time2 ? time2.text : '';
+                if (time1Text && time2Text) {
+                    return timeTools.mergeTime(timeTools.parseTime(time1Text), timeTools.parseTime(time2Text));
+                }
+                if (time1Text) {
+                    return timeTools.parseTime(time1Text);
+                }
+                return timeTools.parseTime(time2Text);
+            }
             /*
              * schema
              * '教師姓名': {
@@ -113,7 +157,7 @@ window.onload = () => {
                         '姓名': row[0].text.trim(), //require
                         '教學科目': row[1] ? row[1].text.trim() : '',
                         '監考時數': +row[2].text, //require
-                        '排除時段': row[3] ? parseTime(row[3].text) : {}
+                        '排除時段': parseUnavailableTime(row[3], row[4])
                     }
                 }
             }
@@ -135,24 +179,33 @@ window.onload = () => {
                     preprocessExamInfo(examInfo, cells);
                 }
             }
-            addClassInfoToExamInfo(examInfo, classInfo);
+            // addClassInfoToExamInfo(examInfo, classInfo);
             return examInfo;
+
+            function parseClass(_class) {
+                const c = [];
+                _class.split(',').forEach(range => {
+                    const splitResult = range.split('-');
+                    if (splitResult.length === 2) {
+                        for (let i = +splitResult[0]; i <= +splitResult[1]; i++) {
+                            c.push(i);
+                        }
+                        return true;
+                    }
+                    c.push(+splitResult[0]);
+                });
+                return c;
+            }
 
             function preprocessExamInfo(examInfo, cells) {
                 const _day = cells[0].text;
                 const _time = cells[1].text;
                 const _grade = cells[2].text;
-                const _group = cells[3].text;
-                const _subject = cells[4].text;
+                const _class = parseClass(cells[3].text);
                 const day = examInfo[_day] || {};
                 const time = day[_time] || {};
                 const grade = time[_grade] || [];
-                grade.push({
-                    'subject': _subject,
-                    'group': _group.split(','),
-                    'classes': []
-                });
-                time[_grade] = grade;
+                time[_grade] = _class;
                 day[_time] = time;
                 examInfo[_day] = day;
             }
