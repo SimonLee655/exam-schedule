@@ -91,6 +91,19 @@ window.onload = () => {
     }
 
     function scheduleProcess(data) {
+        function displayAvailableTeachers(tt, ee) {
+            const count = {};
+            for (const day in ee) {
+                count[day] = {};
+                for (const time in ee[day]) {
+                    count[day][time] = getAvailableTeachers(tt, day, time).length;
+                }
+            }
+            console.log({
+                count
+            });
+        }
+
         function constainsDayTime(unavailableTime, day, time) {
             const times = {
                 '第一節': 1,
@@ -130,9 +143,10 @@ window.onload = () => {
             teachersInfo[name]['監考'] = teacherExam;
         }
         let rawInfo = preProcessData(data);
+        displayAvailableTeachers(rawInfo.teachersInfo, rawInfo.examInfo);
         // const backup = Object.assign({}, rawInfo);
         const backup = JSON.stringify(rawInfo);
-        const maxTry = 99;
+        const maxTry = 9;
         let passFlag = true;
         let tryCount = 0;
         console.log(rawInfo);
@@ -344,6 +358,8 @@ window.onload = () => {
             }
             return classInfo;
         }
+
+
     }
 
     function workbookHandler(workbook) {
