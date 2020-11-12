@@ -73,6 +73,23 @@ window.onload = () => {
         }
     }
 
+    function getRandomInt(max) {
+        return Math.floor(Math.random() * Math.floor(max));
+    }
+
+    function getRandomNumbers(ammount, min, max) {
+        const range = max - min + 1;
+        if (range < ammount) return [];
+        const arr = [];
+        while (arr.length < ammount) {
+            const tmpNumber = getRandomInt(range);
+            if (!arr.includes(tmpNumber)) {
+                arr.push(tmpNumber);
+            }
+        }
+        return arr.map(element => element + min);
+    }
+
     function scheduleProcess(data) {
         function constainsDayTime(unavailableTime, day, time) {
             const times = {
@@ -94,24 +111,78 @@ window.onload = () => {
                 if (constainsDayTime(teachersInfo[name]['排除時段'], day, time)) {
                     continue;
                 }
+                if (!teachersInfo[name]['監考時數']) {
+                    continue;
+                }
                 names.push(name);
             }
             return names;
         }
 
-        function reductionTime(teachersInfo, name) {
-
+        function updateTeacherInfo(teachersInfo, name, day, time, _class) {
+            teachersInfo[name]['監考時數'] -= 1;
+            const teacherExam = teachersInfo[name]['監考'] || [];
+            teacherExam.push({
+                day,
+                time,
+                _class
+            });
+            teachersInfo[name]['監考'] = teacherExam;
         }
-        const rawInfo = preProcessData(data);
+        let rawInfo = preProcessData(data);
+        // const backup = Object.assign({}, rawInfo);
+        const backup = JSON.stringify(rawInfo);
+        const maxTry = 99;
+        let passFlag = true;
+        let tryCount = 0;
         console.log(rawInfo);
-        for (const day in rawInfo.examInfo) {
-            for (const time in rawInfo.examInfo[day]) {
-                let teacherNeededCount = 0;
-                for (const grade in rawInfo.examInfo[day][time]) {
-                    teacherNeededCount += rawInfo.examInfo[day][time][grade].length
+        // const test1 = getAvailableTeachers(rawInfo.teachersInfo, '三', '第五節');
+        // const test2 = getAvailableTeachers(rawInfo.teachersInfo, '五', '第三節');
+        // console.log({
+        //     test1,
+        //     test2
+        // });
+        do {
+            passFlag = true;
+            rawInfo = JSON.parse(backup);
+            console.log(`%c 第${tryCount + 1}次嘗試`, 'color: #e4cdb0');
+            for (const day in rawInfo.examInfo) {
+                for (const time in rawInfo.examInfo[day]) {
+                    let teacherNeededAmount = 0;
+                    for (const grade in rawInfo.examInfo[day][time]) {
+                        teacherNeededAmount += rawInfo.examInfo[day][time][grade].length
+                    }
+                    const availableTeacherList = getAvailableTeachers(rawInfo.teachersInfo, day, time);
+                    if (teacherNeededAmount > availableTeacherList.length) {
+                        console.log(`%c 星期${day}, ${time} 監考老師不足,需要${teacherNeededAmount},僅有${availableTeacherList.length}人 `, 'color: #629dd0');
+                        passFlag = false;
+                        break;
+                    }
+                    const teacherIndex = getRandomNumbers(teacherNeededAmount, 0, availableTeacherList.length - 1);
+                    const teachers = teacherIndex.map(i => availableTeacherList[i]);
+                    // console.log(` day: ${day}, time: ${time} `);
+                    // console.log({
+                    //     teachers
+                    // });
+                    let i = 0;
+                    for (const grade in rawInfo.examInfo[day][time]) {
+                        rawInfo.examInfo[day][time][grade] = rawInfo.examInfo[day][time][grade].map(_class => {
+                            const teacher = teachers[i++]; //  teachers.pop();
+                            updateTeacherInfo(rawInfo.teachersInfo, teacher, day, time, _class);
+                            return {
+                                _class: _class,
+                                teacher: teacher
+                            };
+                        });
+                    }
                 }
-                const availableTeacherList = getAvailableTeachers(rawInfo.teachersInfo, day, time);
             }
+            tryCount += 1;
+        } while (!passFlag && tryCount < maxTry)
+        if (!passFlag) {
+            console.log(`%c 失敗了`, 'color: #e4cdb0');
+        } else {
+            console.log(`%c 成功了!!!!`, 'color: #e4cdb0');
         }
     }
 
