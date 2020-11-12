@@ -162,6 +162,7 @@ window.onload = () => {
             console.log(`%c 第${tryCount + 1}次嘗試`, 'color: #e4cdb0');
             for (const day in rawInfo.examInfo) {
                 for (const time in rawInfo.examInfo[day]) {
+                    let notEnough = false;
                     let teacherNeededAmount = 0;
                     for (const grade in rawInfo.examInfo[day][time]) {
                         teacherNeededAmount += rawInfo.examInfo[day][time][grade].length
@@ -170,9 +171,10 @@ window.onload = () => {
                     if (teacherNeededAmount > availableTeacherList.length) {
                         console.log(`%c 星期${day}, ${time} 監考老師不足,需要${teacherNeededAmount},僅有${availableTeacherList.length}人 `, 'color: #629dd0');
                         passFlag = false;
-                        break;
+                        notEnough = true;
+                        // break;
                     }
-                    const teacherIndex = getRandomNumbers(teacherNeededAmount, 0, availableTeacherList.length - 1);
+                    const teacherIndex = notEnough ? [...Array(availableTeacherList.length).keys()] : getRandomNumbers(teacherNeededAmount, 0, availableTeacherList.length - 1);
                     const teachers = teacherIndex.map(i => availableTeacherList[i]);
                     // console.log(` day: ${day}, time: ${time} `);
                     // console.log({
@@ -182,16 +184,25 @@ window.onload = () => {
                     for (const grade in rawInfo.examInfo[day][time]) {
                         rawInfo.examInfo[day][time][grade] = rawInfo.examInfo[day][time][grade].map(_class => {
                             const teacher = teachers[i++]; //  teachers.pop();
-                            updateTeacherInfo(rawInfo.teachersInfo, teacher, day, time, _class);
+                            if (teacher) {
+                                updateTeacherInfo(rawInfo.teachersInfo, teacher, day, time, _class);
+                                return {
+                                    _class: _class,
+                                    teacher: teacher
+                                };
+                            }
                             return {
                                 _class: _class,
-                                teacher: teacher
+                                teacher: '恰恰'
                             };
                         });
                     }
                 }
             }
             tryCount += 1;
+            console.log({
+                rawInfo
+            });
         } while (!passFlag && tryCount < maxTry)
         if (!passFlag) {
             console.log(`%c 失敗了`, 'color: #e4cdb0');
@@ -217,14 +228,27 @@ window.onload = () => {
          * @param {*} data 
          */
         function parseTeacherInfo(data) {
-            function parseUnavailableTime(time1, time2) {
+            function parseUnavailableTime(time1, time2, time3) {
                 const time1Text = time1 ? time1.text : '';
                 const time2Text = time2 ? time2.text : '';
+                const time3Text = time3 ? time3.text : '';
+                if (time1Text && time2Text && time3) {
+                    return timeTools.mergeTime(timeTools.mergeTime(timeTools.parseTime(time1Text), timeTools.parseTime(time2Text)), timeTools.parseTime(time3Text));
+                }
                 if (time1Text && time2Text) {
                     return timeTools.mergeTime(timeTools.parseTime(time1Text), timeTools.parseTime(time2Text));
                 }
+                if (time1Text && time3Text) {
+                    return timeTools.mergeTime(timeTools.parseTime(time1Text), timeTools.parseTime(time3Text));
+                }
+                if (time2Text && time3Text) {
+                    return timeTools.mergeTime(timeTools.parseTime(time2Text), timeTools.parseTime(time3Text));
+                }
                 if (time1Text) {
                     return timeTools.parseTime(time1Text);
+                }
+                if (time3Text) {
+                    return timeTools.parseTime(time3Text);
                 }
                 return timeTools.parseTime(time2Text);
             }
@@ -254,7 +278,7 @@ window.onload = () => {
                         '姓名': name, //require
                         '教學科目': row[1] ? row[1].text.trim() : '',
                         '監考時數': +row[2].text, //require
-                        '排除時段': parseUnavailableTime(row[3], row[4])
+                        '排除時段': parseUnavailableTime(row[3], row[4], row[5])
                     }
                 }
             }
