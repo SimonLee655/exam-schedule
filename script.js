@@ -197,6 +197,9 @@ window.onload = () => {
             console.log(`%c 失敗了`, 'color: #e4cdb0');
         } else {
             console.log(`%c 成功了!!!!`, 'color: #e4cdb0');
+            console.log({
+                rawInfo
+            });
         }
     }
 
